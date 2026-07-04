@@ -41,3 +41,8 @@ export async function toggleTodo(id: string): Promise<Todo> {
   todo.completed = !todo.completed;
   return todo;
 }
+
+export async function deleteTodo(id: string): Promise<void> {
+  await delay(DUMMY_LATENCY_MS);
+  todos = todos.filter((t) => t.id !== id);
+}
