@@ -1,3 +1,5 @@
+import { supabase } from './supabase';
+
 export type Todo = {
   id: string;
   title: string;
@@ -17,8 +19,16 @@ function delay(ms: number) {
 }
 
 export async function getTodos(): Promise<Todo[]> {
-  await delay(DUMMY_LATENCY_MS);
-  return todos;
+  const { data, error } = await supabase
+    .from('todos')
+    .select('id, title, completed, created_at')
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    throw new Error(`Todoの取得に失敗しました: ${error.message}`);
+  }
+
+  return data.map(({ id, title, completed }) => ({ id, title, completed }));
 }
 
 export async function addTodo(title: string): Promise<Todo> {
