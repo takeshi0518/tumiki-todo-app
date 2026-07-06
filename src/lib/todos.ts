@@ -6,18 +6,6 @@ export type Todo = {
   completed: boolean;
 };
 
-let todos: Todo[] = [
-  { id: '1', title: 'Next.js の App Router を復習する', completed: false },
-  { id: '2', title: 'Todo アプリの UI を作る', completed: false },
-  { id: '3', title: 'CLAUDE.md を書く', completed: true },
-];
-
-const DUMMY_LATENCY_MS = 300;
-
-function delay(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 export async function getTodos(): Promise<Todo[]> {
   const { data, error } = await supabase
     .from('todos')
@@ -71,6 +59,9 @@ export async function toggleTodo(id: string): Promise<Todo> {
 }
 
 export async function deleteTodo(id: string): Promise<void> {
-  await delay(DUMMY_LATENCY_MS);
-  todos = todos.filter((t) => t.id !== id);
+  const { error } = await supabase.from('todos').delete().eq('id', id);
+
+  if (error) {
+    throw new Error(`Todoの削除に失敗しました: ${error.message}`);
+  }
 }
