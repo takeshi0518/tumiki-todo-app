@@ -1,6 +1,6 @@
 ## このプロジェクトは何か？
 
-RAYVEN の [Tumiki MCP Manager](https://www.tumiki.cloud/) を実際に使い、
+RAYVEN の [Tumiki MCP Manager](https://www.tumiki.cloud/) のデモを実際に使い、
 理解するために作った検証用プロジェクトです。
 
 シンプルな Todo アプリを題材に、以下を実際に体験しました。
@@ -11,6 +11,25 @@ RAYVEN の [Tumiki MCP Manager](https://www.tumiki.cloud/) を実際に使い、
   Tumiki の価値を、ユーザーとして体験する
 
 ## 何をやったのか？
+
+1. **検証用の Supabase プロジェクトを用意**
+   使い捨ての検証用環境を作成した
+
+2. **Tumiki に Supabase MCP サーバーを接続**
+   OAuth 連携で登録。この際、AI に渡す権限(Database の READ + WRITE など)を認可画面で確認
+
+3. **Claude Code を Tumiki 経由で接続**
+   Tumiki が発行するエンドポイントを Claude Code の MCP 設定に登録。
+   Supabase への接続情報は Tumiki 側が保持し、Claude Code は Tumiki を通して Supabase を操作する構成になっている。複数の MCP サーバーを Tumiki で一元管理できる点が便利。
+
+4. **AI に DB を構築させる**
+   Claude Code に指示し、Tumiki 経由で Supabase に todos テーブルを作成とデータ挿入
+
+5. **操作が監査ログに記録されるのを確認**
+   テーブル作成・データ挿入・テーブル確認の全操作が、実行時間・データサイズ・トークン数とともに Tumiki に記録された
+
+6. **アプリのデータ層を本物の DB に移行**
+   ダミーデータで作っていた Todo アプリを、Supabase に接続
 
 ## Tumiki を使って感じたこと
 
