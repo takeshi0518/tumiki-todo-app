@@ -32,14 +32,17 @@ export async function getTodos(): Promise<Todo[]> {
 }
 
 export async function addTodo(title: string): Promise<Todo> {
-  await delay(DUMMY_LATENCY_MS);
-  const todo: Todo = {
-    id: crypto.randomUUID(),
-    title,
-    completed: false,
-  };
-  todos = [...todos, todo];
-  return todo;
+  const { data, error } = await supabase
+    .from('todos')
+    .insert({ title })
+    .select('id, title, completed')
+    .single();
+
+  if (error) {
+    throw new Error(`Todoの追加に失敗しました: ${error.message}`);
+  }
+
+  return data;
 }
 
 export async function toggleTodo(id: string): Promise<Todo> {
