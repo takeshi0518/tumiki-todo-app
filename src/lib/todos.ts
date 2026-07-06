@@ -46,13 +46,28 @@ export async function addTodo(title: string): Promise<Todo> {
 }
 
 export async function toggleTodo(id: string): Promise<Todo> {
-  await delay(DUMMY_LATENCY_MS);
-  const todo = todos.find((t) => t.id === id);
-  if (!todo) {
-    throw new Error(`Todo not found: ${id}`);
+  const { data: current, error: fetchError } = await supabase
+    .from('todos')
+    .select('completed')
+    .eq('id', id)
+    .single();
+
+  if (fetchError) {
+    throw new Error(`Todoの取得に失敗しました: ${fetchError.message}`);
   }
-  todo.completed = !todo.completed;
-  return todo;
+
+  const { data, error } = await supabase
+    .from('todos')
+    .update({ completed: !current.completed })
+    .eq('id', id)
+    .select('id, title, completed')
+    .single();
+
+  if (error) {
+    throw new Error(`Todoの更新に失敗しました: ${error.message}`);
+  }
+
+  return data;
 }
 
 export async function deleteTodo(id: string): Promise<void> {
