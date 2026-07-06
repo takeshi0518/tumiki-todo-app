@@ -1,36 +1,108 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+## このプロジェクトは何か？
 
-## Getting Started
+RAYVEN の [Tumiki MCP Manager](https://www.tumiki.cloud/) のデモを実際に使い、
+理解するために作った検証用プロジェクトです。
 
-First, run the development server:
+シンプルな Todo アプリを題材に、以下を実際に体験しました。
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- Tumiki 経由で Claude Code と Supabase の MCP サーバーを接続し、
+  AI（Claude Code）による DB の構築・操作を行う
+- その過程で、MCP を一元管理し、権限と AI の操作を記録・制御する
+  Tumiki の価値を、ユーザーとして体験する
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 何をやったのか？
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. **検証用の Supabase プロジェクトを用意**
+   使い捨ての検証用環境を作成した
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+2. **Tumiki に Supabase MCP サーバーを接続**
+   OAuth 連携で登録。この際、AI に渡す権限(Database の READ + WRITE など)を認可画面で確認
 
-## Learn More
+3. **Claude Code を Tumiki 経由で接続**
+   Tumiki が発行するエンドポイントを Claude Code の MCP 設定に登録。
+   Supabase への接続情報は Tumiki 側が保持し、Claude Code は Tumiki を通して Supabase を操作する構成になっている。複数の MCP サーバーを Tumiki で一元管理できる点が便利。
 
-To learn more about Next.js, take a look at the following resources:
+4. **AI に DB を構築させる**
+   Claude Code に指示し、Tumiki 経由で Supabase に todos テーブルを作成とデータ挿入
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+5. **操作が監査ログに記録されるのを確認**
+   テーブル作成・データ挿入・テーブル確認の全操作が、実行時間・データサイズ・トークン数とともに Tumiki に記録された
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+6. **アプリのデータ層を本物の DB に移行**
+   ダミーデータで作っていた Todo アプリを、Supabase に接続
 
-## Deploy on Vercel
+## Tumiki を使って感じたこと
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### 「AI が何をしたか」が全部記録される
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+「テーブルを見せて」と一度指示しただけで、裏では 6 件の MCP
+リクエストが走っていた。それらが全て Tumiki に記録されていて、
+実行時間・データサイズ・トークン数など可視化されていた。
+AI に権限を渡す怖さや不安があるが、「操作が全て記録され、後から追える」ことで
+その怖さや不安を取り除くことができると思った。
+
+### MCP を一元管理する価値
+
+今回は Supabase 一つ・自分一人での利用だったため、一元管理の恩恵を
+フルには体験できていない。ただ、実際に使って感じた最大のメリットは
+「ログ」だった。いつ・どれだけ・どんなリクエストが行われたかを
+後から追える。
+一人での開発ではその価値は限定的だが、複数人・複数の AI ツールが
+関わる開発では、誰がどの AI に何を操作させたかを一箇所で記録・
+管理できる意味は大きいと想像できる。
+
+## 詰まった点
+
+Tumiki の管理画面が提示するコマンド（接続先 `server.tumiki.cloud`）で
+Claude Code を接続したが、`Connected` にならなかった。
+
+### 切り分け
+
+- `claude mcp list` で確認したところ、spabase-mcp の登録はできていた。つまり
+  設定は正しく、問題は接続先にあると切り分けた。
+- `dig` で `server.tumiki.cloud` を引くと A レコードは返る → ドメイン名から IP アドレスへの変換(DNS)は正常にてきている。
+- `curl -v` で `server.tumiki.cloud` を叩くと、`Trying ...:443` の段階で
+  止まり、TCP 接続がタイムアウトした。IP アドレスまでは分かる（DNS は正常）が、
+  そのサーバーに接続できない状態。
+
+### 発見
+
+Tumiki チームのメンバーが書いた Qiita 記事を見つけ、何度も読んだ。
+記事では Context7 の MCP サーバーが Claude Code と接続できている。
+「なぜ記事の Context7 は繋がるのに、自分の Supabase は繋がらないのか」
+そう考えて、記事のコマンドと自分のコマンドを一行ずつ見比べた。
+
+すると、接続先のドメインが違っていた。
+
+- 記事：`mcp.tumiki.cloud`
+- 自分：`server.tumiki.cloud`（管理画面が提示したもの）
+
+`mcp.tumiki.cloud` に変えて登録し直したところ、接続に成功した。
+開発チームの記事がなければ気づけなかった。一次情報に当たることの
+大切さを実感した。
+
+### 気づき
+
+今回の調査では、まずネットワークレイヤーごとに問題を切り分けた。
+
+- `dig` で DNS 解決
+- `curl -v` で TCP 接続
+- Claude Code 側の MCP 登録状態
+
+この結果、「設定ミスではなく接続先に問題がある」と仮説を立てることができた。
+そのうえで、Tumiki 開発チームの記事に掲載されている実際の設定と比較し、接続先ドメインの違いを発見できた。
+
+闇雲に設定を変更するのではなく、仮説を立てて切り分けを行い、
+一次情報と照合しながら原因を特定することの重要性を学んだ。
+
+## 使用技術
+
+| 技術            |                    |
+| --------------- | ------------------ |
+| 言語            | TypeScript         |
+| フレームワーク  | Next.js 15         |
+| UI ライブラリ   | React 19           |
+| スタイリング    | Tailwind CSS       |
+| DB              | Supabase           |
+| MCP 管理基盤    | Tumiki MCP Manager |
+| AI コーディング | Claude Code        |
